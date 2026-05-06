@@ -1,4 +1,5 @@
 import sqlite3
+from flask import Flask, render_template, request, redirect, url_for, flash
 
 app = Flask(__name__)
 app.secret_key = 'Unaclavesecreta'
@@ -8,8 +9,7 @@ def get_db_connection():
     conn = sqlite3.connect("bd_instituto.db")
     conn.row_factory = sqlite3.Row
     return conn
-  
-    
+
 @app.route("/")
 def index():
     return redirect(url_for('estudiantes'))
@@ -27,7 +27,7 @@ def cursos():
     cursos = conn.execute('SELECT * FROM cursos').fetchall()
     conn.close()
     return render_template('cursos.html', cursos=cursos)
-  
+
 @app.route("/curso/nuevo", methods=['GET', 'POST'])
 def nuevo_curso():
     if request.method == 'POST':
@@ -43,11 +43,11 @@ def nuevo_curso():
         flash('Curso agregado correctamente', 'success')
         return redirect(url_for('cursos'))
     return render_template('form_curso.html')
-    
+
 @app.route('/curso/editar/<int:id>', methods=['GET', 'POST'])
 def editar_curso(id):
     conn = get_db_connection()
-    curso = conn.execute("SELECT * FROM Curso WHERE id = ?", (id,)).fetchone()
+    curso = conn.execute("SELECT * FROM cursos WHERE id = ?", (id,)).fetchone()
     if request.method == 'POST':
         descripcion = request.form['descripcion']
         horas = request.form['horas']
@@ -59,7 +59,7 @@ def editar_curso(id):
         return redirect(url_for('cursos'))
 
     return render_template('form_curso.html', curso=curso)
-    
+
 @app.route('/curso/eliminar/<int:id>')
 def eliminar_curso(id):
     conn = get_db_connection()
@@ -68,7 +68,7 @@ def eliminar_curso(id):
     conn.close()
     flash('Curso eliminado','success')
     return redirect(url_for('cursos'))
-    
+
 @app.route("/inscripciones")
 def inscripciones():
     conn = get_db_connection()
@@ -86,42 +86,44 @@ def inscripciones():
     conn.close()
     return render_template('inscripciones.html', inscripciones=inscripciones)
 
-@app.route("/inscripción/nuevo", methods=['GET', 'POST'])
-def nueva_inscripción():
+@app.route("/inscripcion/nuevo", methods=['GET', 'POST'])
+def nueva_inscripcion():
     conn = get_db_connection()
-    # En caso de que sea POST, consolidar la inscripción
-if request.method == 'POST':
-    fecha = request.form['fecha']
-    estudiante_id = request.form['estudiante_id']
-    curso_id = request.form['curso_id']
+    # En caso de que sea POST, consolidar la inscripcion
+    if request.method == 'POST':
+        fecha = request.form['fecha']
+        estudiante_id = request.form['estudiante_id']
+        curso_id = request.form['curso_id']
 
-    conn.execute(
-        """
-        INSERT INTO inscripciones
-        (fecha, estudiante_id, curso_id)
-        VALUES (?, ?, ?)
-        """
-    )
-    conn.commit()
-    conn.close()
-    return redirect(url_for("inscripciones"))
+        conn.execute(
+            """
+            INSERT INTO inscripciones
+            (fecha, estudiante_id, curso_id)
+            VALUES (?, ?, ?)
+            """, (fecha, estudiante_id, curso_id)
+        )
+        conn.commit()
+        conn.close()
+        return redirect(url_for("inscripciones"))
 
-    # En caso de GET Enviar datos para mostrar el formulario de inscripción
+    # En caso de GET Enviar datos para mostrar el formulario de inscripcion
     estudiantes = conn.execute(
-    """
-    SELECT id, concat(nombre,'', apellidos) as nombre
-    FROM estudiantes
-    """
+        """
+        SELECT id, nombre || ' ' || apellidos as nombre
+        FROM estudiantes
+        """
     ).fetchall()
-cursos = conn.execute(
-    """
-    SELECT id, descripcion FROM cursos
-    """
-).foreach(c)
-conn.close()
-return render_template('form_inscripcion.html', estudiantes=estudiantes, cursos=cursos)
-@app.route('/inscripcion/eliminar/<int:id>')
+    
+    cursos = conn.execute(
+        """
+        SELECT id, descripcion FROM cursos
+        """
+    ).fetchall()
+    
+    conn.close()
+    return render_template('form_inscripcion.html', estudiantes=estudiantes, cursos=cursos)
 
+@app.route('/inscripcion/eliminar/<int:id>')
 def eliminar_inscripcion(id):
     conn = get_db_connection()
     conn.execute("DELETE FROM inscripciones WHERE id = ?", (id,))
